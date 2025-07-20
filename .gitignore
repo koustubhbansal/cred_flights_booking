@@ -6,10 +6,10 @@
 *.dylib
 
 # Go build artifacts
-stress-test
-booking-service
-flight-service
-payment-service
+bin/stress-test
+bin/booking-service
+bin/flight-service
+bin/payment-service
 
 # Test binary, built with `go test -c`
 *.test
