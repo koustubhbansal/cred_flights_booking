@@ -1,0 +1,96 @@
+services:
+  postgres-flights:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: flights_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_flights_data:/var/lib/postgresql/data
+      - ./scripts/init_flights_db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - flight-network
+
+  postgres-bookings:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: bookings_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_bookings_data:/var/lib/postgresql/data
+      - ./scripts/init_bookings_db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - flight-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - flight-network
+
+  flight-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.flight
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres-flights
+      DB_PORT: 5432
+      DB_NAME: flights_db
+      DB_USER: postgres
+      DB_PASSWORD: password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - postgres-flights
+      - redis
+    networks:
+      - flight-network
+
+  booking-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.booking
+    ports:
+      - "8081:8081"
+    environment:
+      DB_HOST: postgres-bookings
+      DB_PORT: 5432
+      DB_NAME: bookings_db
+      DB_USER: postgres
+      DB_PASSWORD: password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      FLIGHT_SERVICE_URL: http://flight-service:8080
+      PAYMENT_SERVICE_URL: http://payment-service:8082
+    depends_on:
+      - postgres-bookings
+      - redis
+      - flight-service
+      - payment-service
+    networks:
+      - flight-network
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.payment
+    ports:
+      - "8082:8082"
+    networks:
+      - flight-network
+
+volumes:
+  postgres_flights_data:
+  postgres_bookings_data:
+
+networks:
+  flight-network:
+    driver: bridge 
